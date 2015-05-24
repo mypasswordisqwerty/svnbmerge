@@ -291,7 +291,8 @@ class SvnMerge:
         dt=rv['date'].strftime("%H:%M" if cols[2]==5 else "%m-%d %H:%M")
         added=rev in self.tomerge
         merged=rev in self.merged
-        st="+" if added else "*" if merged else " "
+        cantmerge=rev not in self.canmerge
+        st="+" if added else "*" if merged else "." if cantmerge else " "
         st+=rv['rev']+" "*(cols[0]-len(rv['rev'])+1)
         st+=rv['author']+" "*(cols[1]-len(rv['author'])+1)
         if (len(msg)>cols[3]):
@@ -302,10 +303,10 @@ class SvnMerge:
             st=self.col.green(st)
         elif added:
             st=self.col.yellow(st)
-        elif rev in self.canmerge:
-            st=self.col.white(st)
-        else:
+        elif cantmerge:
             st=self.col.red(st)
+        else:
+            st=self.col.white(st)
         print st
 
 
