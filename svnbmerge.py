@@ -236,14 +236,14 @@ class SvnMerge:
 
 
     def list(self,params):
-        """ show revisions list """
+        """ show revision list """
         index=0 if len(params)<1 else int(params[0])
         count=self.params['revcount'] if len(params)<2 else int(params[1])
         if count==0:
             count=10
         revs=self.revs if self.params['showmerged'] else self.canmerge
         if (index>=len(revs)):
-            raise Exception("No revs with index "+str(index))
+            raise Exception("Wrong index "+str(index)+". Found "+str(len(revs))+" revisions.")
         if index+count>len(revs):
             count=len(revs)-index
         mn=revs[index+count-1]
@@ -372,17 +372,17 @@ class SvnMerge:
         res=os.system(cmd)
         if res!=0:
             self.revert([])
-            raise Exception("Svn returns "+str(res))
+            raise Exception("svn returns "+str(res))
         self.merged+=self.tomerge
         self.tomerge=[]
         self.list([])
 
 
     def revert(self,params):
-        """ revert merge changes """
+        """ revert local branch """
         res=os.system("svn revert -R .")
         if res!=0:
-            raise Exception("Svn returns "+str(res))
+            raise Exception("svn returns "+str(res))
         self.tomerge+=self.merged
         self.merged=[]
         self.list([])
@@ -391,7 +391,7 @@ class SvnMerge:
     def commit(self,params):
         """ commit merge changes """
         if len(self.merged)==0:
-            raise "Nothing to commit"
+            raise "Nothing to commit."
         revs=[]
         for x in sorted(self.merged):
             if len(revs)==0 or x!=revs[-1][1]+1:
@@ -423,7 +423,7 @@ class SvnMerge:
             res=os.system("svn commit -F "+cfile)
         os.unlink(cfile)
         if (res!=0):
-            raise Exception("Svn returns "+str(res))
+            raise Exception("svn returns "+str(res))
         self.merged=[]
         self.mergeinfo([])
 
@@ -470,7 +470,7 @@ class SvnMerge:
             return self.clst[state]
         txt=readline.get_line_buffer()
         while '  ' in txt:
-            txt=text.replace('  ',' ')
+            txt=txt.replace('  ',' ')
         words=txt.split(' ')
         if len(words)<2:
             what=['command']
