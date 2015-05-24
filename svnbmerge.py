@@ -510,6 +510,12 @@ Options:
 -h, --help      : Print usage
 -v, --verbose   : Set verbose logging
 
+revision list legend:
+  white     - merge candidate
++ yellow    - selected for merge
+* green     - merged
+. red       - can't merge (already merged)
+
 shell commands:
 """
         self.help(["all"])
