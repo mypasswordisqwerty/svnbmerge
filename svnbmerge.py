@@ -405,7 +405,7 @@ class SvnMerge:
             if x[0]==x[1]:
                 msg+=str(x[0])
             else:
-                msg+=str(x[0])+"-"+x[1]
+                msg+=str(x[0])+"-"+str(x[1])
         msg+=" from "+self.branch+":\n"
         for x in sorted(self.merged):
             msg+=self.revinfo[x]['msg']+"\n........\n"
