@@ -376,7 +376,9 @@ class SvnMerge:
         """ merge selected revisions """
         if len(self.tomerge)==0:
             raise Exception("Nothing selected for merge")
-        self.printMerge(self.tomerge,0,len(self.tomerge))
+        theight,twidth=os.popen('stty size', 'r').read().split()
+        twidth=int(twidth)
+        self.printMerge(self.tomerge,0,len(self.tomerge),twidth)
         ans=raw_input("Merge selected revisions? [y/N]:")
         if not ans.lower() in ['y','yes']:
             self.list([])
