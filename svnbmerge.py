@@ -44,7 +44,7 @@ class SvnMerge:
         self.procs={}
         self.cmds={}
         self.clst=[]
-        self.params={'source':'','revcount':20, 'showmerged':True, 'colors':True, 'verbose':False}
+        self.params={'source':'','revcount':'auto', 'showmerged':True, 'colors':True, 'verbose':False}
         self.col=Colors(self.params['colors'])
         self.canmerge=[]
         self.tomerge=[]
@@ -59,8 +59,8 @@ class SvnMerge:
         self.log.setLevel(logging.INFO)
         self.log.addHandler(logging.StreamHandler())
 
-        self.addcmd("remove|delete|unselect|r|d",self.remove,['del_revlist'])
-        self.addcmd("add|select|a|s",self.add,['add_revlist'])
+        self.addcmd("add|select|a|s|+",self.add,['add_revlist'])
+        self.addcmd("remove|delete|unselect|r|d|-",self.remove,['del_revlist'])
         self.addcmd("merge",self.merge)
         self.addcmd("revert",self.revert)
         self.addcmd("commit",self.commit)
@@ -125,15 +125,20 @@ class SvnMerge:
         if not params[0] in self.params:
             raise Exception("Unknown option "+params[0])
         v=self.params[params[0]]
-        if v.__class__.__name__=='bool':
-            self.params[params[0]]=params[1] in ['1','true','on']
-        elif v.__class__.__name__=='int':
-            self.params[params[0]]=eval(params[1])
+        if params[0]=='revcount':
+            self.params[params[0]]='auto' if params[1]=='auto' else eval(params[1])
         else:
-            self.params[params[0]]=params[1]
+            if v.__class__.__name__=='bool':
+                self.params[params[0]]=params[1] in ['1','true','on']
+            elif v.__class__.__name__=='int':
+                self.params[params[0]]=eval(params[1])
+            else:
+                self.params[params[0]]=params[1]
         print params[0],'=',str(self.params[params[0]])
         if params[0]=='verbose':
             self.log.setLevel(logging.DEBUG if self.params['verbose'] else logging.INFO)
+        elif params[0]=="revcount":
+            self.list()
         elif params[0]=="colors":
             self.col.enable(self.params['colors'])
         elif params[0] in ['showmerged']:
@@ -189,7 +194,7 @@ class SvnMerge:
             rev=int(rs)
             if not rev in self.revs:
                 self.revs+=[rev]
-            descr={'rev':rs,'author':'','date':'','msg':''}
+            descr={'id':rev,'rev':rs,'author':'','date':'','msg':''}
             for n in x.childNodes:
                 if not n.nodeName in descr:
                     continue
@@ -231,14 +236,19 @@ class SvnMerge:
             self.canmerge+=[int(x[1:])]
         self.canmerge.sort(reverse=True)
         if len(self.revinfo)==0:
-            self.updateLogs(0,100)
+            self.updateLogs(0,1000)
         self.list([])
 
 
     def list(self,params):
         """ show revision list """
+        theight,twidth=os.popen('stty size', 'r').read().split()
+        theight=int(theight)
+        twidth=int(twidth)
         index=0 if len(params)<1 else int(params[0])
         count=self.params['revcount'] if len(params)<2 else int(params[1])
+        if count=='auto':
+            count=theight-5
         if count==0:
             count=10
         revs=self.revs if self.params['showmerged'] else self.canmerge
@@ -250,10 +260,10 @@ class SvnMerge:
         if not mn in self.revinfo:
             mx=min(self.revinfo) if len(self.revinfo)>0 else self.canmerge[0]
             self.updateLogs(mx,mn)
-        self.printMerge(revs,index,count)
+        self.printMerge(revs,index,count,twidth)
 
 
-    def printMerge(self,revs,index,count):
+    def printMerge(self,revs,index,count,twidth):
         cols=[3,4,5,0]
         for x in range(count):
             rv=self.revinfo[revs[index+x]]
@@ -267,7 +277,7 @@ class SvnMerge:
         today=datetime.datetime.now().date()
         yesterday=today-datetime.timedelta(days=1)
         week=today-datetime.timedelta(days=7)
-        cols[3]=80-(cols[0]+cols[1]+cols[2]+4)
+        cols[3]=twidth-(cols[0]+cols[1]+cols[2]+4)
         for x in range(count):
             rev=revs[index+x]
             rv=self.revinfo[rev]
@@ -278,7 +288,7 @@ class SvnMerge:
                 dt=2
             else:
                 cols[2]=11
-                cols[3]=80-(cols[0]+cols[1]+cols[2]+4)
+                cols[3]=twidth-(cols[0]+cols[1]+cols[2]+4)
                 dt=3 if dt>=week else 4
             if dt!=date:
                 date=dt
@@ -310,38 +320,43 @@ class SvnMerge:
         print st
 
 
-    def getRevs(self,params):
+    def makeRule(self,params):
         res=[]
-        for x in params:
-            lst=self.revsplit.findall(x)
-            for r in lst:
-                if '-' in r or ':' in r:
-                    p=r.split(':' if ':' in r else '-')
+        digs="0123456789"
+        for x in ' '.join(params).split(','):
+            x=x.strip()
+            if x=='':
+                continue
+            if x[0] in digs or x[0]=='r' and x[1] in digs:
+                if x.startswith('r'):
+                    x=x[1:]
+                if '-' in x or ':' in x:
+                    p=x.split(':' if ':' in x else '-')
                     for i in range(2):
                         p[i]=p[i].strip()
                         if p[i].startswith('r'):
                             p[i]=p[i][1:]
                     x1=int(p[0])
                     x2=int(p[1])
-                    for i in range(min(x1,x2),max(x1,x2)+1):
-                        res+=[i]
+                    x="id>="+str(min(x1,x2))+" and id<="+str(max(x1,x2))+""
                 else:
-                    if r.startswith('r'):
-                        r=r[1:]
-                    res+=[int(r)]
-        return res
+                    x="id=="+x
+            res+=['('+x+')']
+        return ' and '.join(res)
 
 
 
     def add(self,params):
         """ add revisions to merge """
-        revs=self.getRevs(params)
-        for x in revs:
-            if x in self.canmerge:
-                if not x in self.tomerge and not x in self.merged:
+        rule=self.makeRule(params)
+        try:
+            for x in self.canmerge:
+                if x in self.tomerge or x in self.merged or not x in self.revinfo:
+                    continue
+                if eval(rule,{},self.revinfo[x])==True:
                     self.tomerge+=[x]
-            else:
-                print self.col.red("Can't merge revision "+str(x))
+        except Exception as e:
+            print self.col.red("Error: "+str(e))
         self.tomerge.sort(reverse=True)
         self.list([])
 
@@ -349,10 +364,13 @@ class SvnMerge:
 
     def remove(self,params):
         """ remove revisions from mergelist """
-        revs=self.getRevs(params)
-        for x in revs:
-            if x in self.tomerge:
-               self.tomerge.remove(x)
+        rule=self.makeRule(params)
+        try:
+            for x in self.tomerge:
+                if eval(rule,{},self.revinfo[x])==True:
+                    self.tomerge.remove(x)
+        except Exception as e:
+            print self.col.red("Error: "+str(e))
         self.list([])
 
 
@@ -504,20 +522,19 @@ class SvnMerge:
 
 
     def usage(self):
-        print """-=svn branch merge cui tool v0.1=-
+        print """-=svn branch merge cui tool v0.2=-
 usage: svnbmerge.py [options] [shell commands with parameters]
 Options:
 -h, --help      : Print usage
 -v, --verbose   : Set verbose logging
 
-revision list legend:
-  white     - merge candidate
-+ yellow    - selected for merge
-* green     - merged
-. red       - can't merge (already merged)
-
-shell commands:
-"""
+Revision list legend:"""
+        print self.col.white("  white     - merge candidate")
+        print self.col.yellow("+ yellow    - selected for merge")
+        print self.col.green("* green     - merged")
+        print self.col.red(". red       - can't merge (already merged)")
+        print """
+Shell commands:"""
         self.help(["all"])
 
 
