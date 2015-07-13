@@ -137,11 +137,9 @@ class SvnMerge:
         print params[0],'=',str(self.params[params[0]])
         if params[0]=='verbose':
             self.log.setLevel(logging.DEBUG if self.params['verbose'] else logging.INFO)
-        elif params[0]=="revcount":
-            self.list()
         elif params[0]=="colors":
             self.col.enable(self.params['colors'])
-        elif params[0] in ['showmerged']:
+        elif params[0] in ['showmerged','revcount']:
             self.list([])
         elif params[0]=="source":
             out=self.svn(["info",self.params['source']])
