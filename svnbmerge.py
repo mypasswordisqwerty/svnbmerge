@@ -66,8 +66,8 @@ class SvnMerge:
         self.addcmd("commit",self.commit)
         self.addcmd("mergeinfo",self.mergeinfo)
         self.addcmd("update|up",self.update)
-        self.addcmd("log|l",self.svnlog,["[number]"])
-        self.addcmd("list",self.list,["[index]","[amount]"])
+        self.addcmd("log",self.svnlog,["[number]"])
+        self.addcmd("list|l",self.list,["[index]","[amount]"])
         self.addcmd("get",self.getparam,["[parameter]"])
         self.addcmd("set",self.setparam,["parameter","value"])
         self.addcmd("cd",self.cwd,["path"])
@@ -169,11 +169,12 @@ class SvnMerge:
 
 
 
-    def updateLogs(self,frm,to):
+    def updateLogs(self,frm=0,to=0):
         print "updating source logs..."
         cmd=["log","--xml"]
         if frm==0:
-            cmd+=["-l",str(to)]
+            if to>0:
+                cmd+=["-l",str(to)]
         else:
             cmd+=["-r",str(frm)+":"+str(to)]
         if self.test and frm==0 and os.path.exists("svnlog.log"):
@@ -234,7 +235,7 @@ class SvnMerge:
             self.canmerge+=[int(x[1:])]
         self.canmerge.sort(reverse=True)
         if len(self.revinfo)==0:
-            self.updateLogs(0,1000)
+            self.updateLogs(0,3000)
         self.list([])
 
 
